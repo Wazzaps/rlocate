@@ -1,0 +1,11 @@
+[package]
+name = "rlocate"
+version = "0.1.0"
+authors = ["David Shlemayev <david.shlemayev@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+regex = "1"
+memmap = "0.7.0"
+bincode = "1"
+crossbeam = "0.8.0"
