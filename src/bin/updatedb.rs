@@ -17,8 +17,8 @@ fn index_file(
 ) -> u32 {
     // Insert file into index
     let name_bytes = path.file_name().unwrap().as_bytes();
-    name_db.write(name_bytes).unwrap();
-    name_db.write(b"\0").unwrap();
+    name_db.write_all(name_bytes).unwrap();
+    name_db.write_all(b"\0").unwrap();
     let my_offset = *name_counter;
     meta_dict.insert(my_offset, parent_offset);
     *name_counter += name_bytes.len() as u32 + 1;

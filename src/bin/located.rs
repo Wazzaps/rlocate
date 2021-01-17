@@ -1,4 +1,4 @@
-use std::io::BufRead;
+use std::{io::BufRead, os::unix::prelude::OsStrExt};
 use std::{collections::HashMap, fs::File};
 use std::{io::BufReader, os::unix::net::UnixListener};
 use std::{
@@ -7,13 +7,15 @@ use std::{
     time::Instant,
 };
 
-use crossbeam;
 use memmap::MmapOptions;
 use regex::bytes::{Match, Regex};
 
+#[path = "../sock_path.rs"]
+mod sock_path;
+
 fn find_null_fwd(buf: &[u8], offset: usize) -> Option<usize> {
-    for i in offset..buf.len() {
-        if buf[i] == 0 {
+    for (i, ch) in buf.iter().enumerate().skip(offset) {
+        if *ch == 0 {
             return Some(i);
         }
     }
@@ -84,7 +86,7 @@ fn locate<W: Write>(query: &str, output: &mut W, names_db: &[u8], meta_db: &Hash
         let full_path: Vec<&[u8]> = full_path.iter().rev().map(|v| v.as_slice()).collect();
         let full_path = full_path.join(&b'/');
         let full_path_str = String::from_utf8_lossy(full_path.as_slice());
-        if let Err(_) = write!(output, "/{}\n", full_path_str) {
+        if writeln!(output, "/{}", full_path_str).is_err() {
             break;
         }
     }
@@ -123,7 +125,15 @@ fn main() {
         bincode::deserialize_from(&mut meta_db).expect("Failed to read metadata DB");
 
     println!("Ready!");
-    let listener = UnixListener::bind("/tmp/everything.sock").expect("Failed to bind socket");
+
+    let sock_path = sock_path::get();
+
+    if sock_path.exists() {
+        std::fs::remove_file(&sock_path).expect("Failed to remove existing socket file");
+    }
+
+    let listener = UnixListener::bind(&sock_path).expect("Failed to bind socket");
+    println!("Listening on {}", String::from_utf8_lossy(sock_path.as_os_str().as_bytes()));
     crossbeam::scope(|scope| {
         for stream in listener.incoming() {
             if let Ok(stream) = stream {

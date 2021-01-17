@@ -1,4 +1,7 @@
-use std::{io::{BufRead, BufReader, Read, Write}, os::unix::net::UnixStream, process::exit};
+use std::{io::{BufRead, BufReader, Write}, os::unix::net::UnixStream, process::exit};
+
+#[path = "../sock_path.rs"]
+mod sock_path;
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
@@ -6,7 +9,7 @@ fn main() {
         eprintln!("Usage: locate <query>");
         exit(1);
     } else {
-        let stream = UnixStream::connect("/tmp/everything.sock");
+        let stream = UnixStream::connect(sock_path::get());
         match stream {
             Ok(mut stream) => {
                 stream.write_all(args[1].as_bytes()).expect("Failed to send query");
@@ -16,10 +19,10 @@ fn main() {
                 let stdout = std::io::stdout();
                 let mut stdout = stdout.lock();
                 for line in reader.lines() {
-                    if let Err(_) = stdout.write_all(line.expect("Connection with daemon broken").as_bytes()) {
+                    if stdout.write_all(line.expect("Connection with daemon broken").as_bytes()).is_err() {
                         break;
                     }
-                    if let Err(_) = stdout.write_all(b"\n") {
+                    if stdout.write_all(b"\n").is_err() {
                         break;
                     }
                 }
